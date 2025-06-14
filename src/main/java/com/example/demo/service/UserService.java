@@ -20,10 +20,12 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final UserMapping userMapping;
+    private final ProducerService producerService;
 
-    public UserService(UserRepository userRepository, UserMapping userMapping) {
+    public UserService(UserRepository userRepository, UserMapping userMapping, ProducerService producerService) {
         this.userRepository = userRepository;
         this.userMapping = userMapping;
+        this.producerService = producerService;
     }
 
     public UserDto findById(Long id) {
@@ -33,21 +35,23 @@ public class UserService {
     }
 
     @Transactional
-    public UserDto create(User user) {
-        Optional<User> chekUser = userRepository.findByEmail(user.getEmail());
+    public UserDto create(UserDto userDto) {
+        Optional<User> chekUser = userRepository.findByEmail(userDto.getEmail());
         if (chekUser.isPresent()) {
-            throw new IllegalArgumentException("User with email " + user.getEmail() + " already exists");
+            throw new IllegalArgumentException("User with email " + userDto.getEmail() + " already exists");
         }
-        user.setAge(Period.between(user.getBirthday(), LocalDate.now()).getYears());
-        User createdUser = userRepository.save(user);
+        User userEntity = userMapping.user(userDto);
+        userEntity.setAge(Period.between(userEntity.getBirthday(), LocalDate.now()).getYears());
+        User createdUser = userRepository.save(userEntity);
+
+        producerService.sendMessageForCreate(createdUser);
+
         return userMapping.userDto(createdUser);
     }
 
     public void delete(Long id) {
-        Optional<User> user = userRepository.findById(id);
-        if (user.isEmpty()) {
-            throw new IllegalStateException("User with id " + id + " does not exist");
-        }
+        User user = userRepository.findById(id).orElseThrow(() -> new IllegalStateException("User with id " + id + " not found"));
+        producerService.sendMessageForDelete(user);
         userRepository.deleteById(id);
     }
 

@@ -1,158 +1,157 @@
 package com.example.demo;
 
 import com.example.demo.dto.UserDto;
-import com.example.demo.dto.mapping.UserMapping;
 import com.example.demo.entity.User;
 import com.example.demo.repository.UserRepository;
+import com.example.demo.service.ProducerService;
 import com.example.demo.service.UserService;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.Period;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
 
+@SpringBootTest
+@Transactional
 class UserServiceTest {
 
-    private UserRepository userRepository;
-    private UserMapping userMapping;
+    @Autowired
     private UserService userService;
 
-    @BeforeEach
-    void setUp() {
-        userRepository = mock(UserRepository.class);
-        userMapping = mock(UserMapping.class);
-        userService = new UserService(userRepository, userMapping);
-    }
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+
+    @MockitoBean
+    private ProducerService producerService;
 
     @Test
     void createUser_whenEmailNotExists_shouldSaveAndReturnDto() {
-        User user = new User();
-        user.setEmail("test@example.com");
-        user.setBirthday(LocalDate.of(1990, 1, 1));
-
-        when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.empty());
-
-        User savedUser = new User();
-        savedUser.setEmail("test@example.com");
-        savedUser.setBirthday(user.getBirthday());
-        savedUser.setAge(33); // предположим текущий год 2023
-        when(userRepository.save(any(User.class))).thenReturn(savedUser);
-
         UserDto userDto = new UserDto();
-        when(userMapping.userDto(savedUser)).thenReturn(userDto);
+        userDto.setEmail("test@example.com");
+        userDto.setBirthday(LocalDate.of(1990, 1, 1));
+        userDto.setName("Test User");
 
-        UserDto result = userService.create(user);
+        UserDto result = userService.create(userDto);
 
         assertNotNull(result);
-        verify(userRepository).findByEmail("test@example.com");
-        verify(userRepository).save(any(User.class));
-        verify(userMapping).userDto(savedUser);
+        assertEquals("test@example.com", result.getEmail());
+        assertEquals("Test User", result.getName());
+        assertEquals(userDto.getBirthday(), result.getBirthday());
+
+        Optional<User> savedUser = userRepository.findByEmail("test@example.com");
+        assertTrue(savedUser.isPresent());
+        assertEquals("Test User", savedUser.get().getName());
     }
 
     @Test
     void createUser_whenEmailExists_shouldThrow() {
-        User user = new User();
-        user.setEmail("exist@example.com");
+        User existing = new User();
+        existing.setEmail("exist@example.com");
+        existing.setBirthday(LocalDate.of(1990, 1, 1));
+        existing.setName("Existing User");
+        existing.setAge(Period.between(existing.getBirthday(), LocalDate.now()).getYears());
+        userRepository.save(existing);
 
-        when(userRepository.findByEmail("exist@example.com")).thenReturn(Optional.of(new User()));
+        UserDto userDto = new UserDto();
+        userDto.setEmail("exist@example.com");
+        userDto.setBirthday(LocalDate.of(1995, 5, 5));
+        userDto.setName("New User");
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> userService.create(user));
+                () -> userService.create(userDto));
 
         assertEquals("User with email exist@example.com already exists", ex.getMessage());
-        verify(userRepository, never()).save(any());
     }
 
     @Test
     void findById_whenUserExists_shouldReturnDto() {
         User user = new User();
-        user.setId(1L);
-        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        user.setEmail("find@example.com");
+        user.setBirthday(LocalDate.of(1990, 1, 1));
+        user.setName("Find Me");
+        User saved = userRepository.save(user);
 
-        UserDto userDto = new UserDto();
-        when(userMapping.userDto(user)).thenReturn(userDto);
-
-        UserDto result = userService.findById(1L);
+        UserDto result = userService.findById(saved.getId());
 
         assertNotNull(result);
-        verify(userRepository).findById(1L);
-        verify(userMapping).userDto(user);
     }
 
     @Test
     void findById_whenUserNotFound_shouldThrow() {
-        when(userRepository.findById(1L)).thenReturn(Optional.empty());
-
         IllegalStateException ex = assertThrows(IllegalStateException.class,
-                () -> userService.findById(1L));
+                () -> userService.findById(999L));
 
-        assertEquals("User with id 1 not found", ex.getMessage());
+        assertEquals("User with id 999 not found", ex.getMessage());
     }
 
     @Test
     void delete_whenUserExists_shouldDelete() {
         User user = new User();
-        user.setId(1L);
-        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        user.setEmail("delete@example.com");
+        user.setBirthday(LocalDate.of(1990, 1, 1));
+        user.setName("To Delete");
+        User saved = userRepository.save(user);
 
-        userService.delete(1L);
+        userService.delete(saved.getId());
 
-        verify(userRepository).deleteById(1L);
+        assertFalse(userRepository.findById(saved.getId()).isPresent());
     }
 
     @Test
     void delete_whenUserNotFound_shouldThrow() {
-        when(userRepository.findById(1L)).thenReturn(Optional.empty());
-
         IllegalStateException ex = assertThrows(IllegalStateException.class,
-                () -> userService.delete(1L));
+                () -> userService.delete(123L));
 
-        assertEquals("User with id 1 does not exist", ex.getMessage());
-        verify(userRepository, never()).deleteById(any());
+        assertEquals("User with id 123 not found", ex.getMessage());
     }
 
     @Test
     void update_whenUserExists_shouldUpdateFields() {
         User user = new User();
-        user.setId(1L);
-        user.setName("OldName");
         user.setEmail("old@example.com");
+        user.setName("Old Name");
+        user.setBirthday(LocalDate.of(1990, 1, 1));
+        User saved = userRepository.save(user);
 
-        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
-        when(userRepository.findByEmail("new@example.com")).thenReturn(Optional.empty());
+        userService.update(saved.getId(), "New Name", "new@example.com");
 
-        userService.update(1L, "NewName", "new@example.com");
-
-        assertEquals("NewName", user.getName());
-        assertEquals("new@example.com", user.getEmail());
-        // save не вызывается, т.к. метод помечен @Transactional
-        verify(userRepository, never()).save(any());
+        User updated = userRepository.findById(saved.getId()).orElseThrow();
+        assertEquals("New Name", updated.getName());
+        assertEquals("new@example.com", updated.getEmail());
     }
 
     @Test
     void update_whenUserNotFound_shouldThrow() {
-        when(userRepository.findById(1L)).thenReturn(Optional.empty());
-
         IllegalStateException ex = assertThrows(IllegalStateException.class,
-                () -> userService.update(1L, "Name", "email@example.com"));
+                () -> userService.update(999L, "Name", "email@example.com"));
 
-        assertEquals("User with id 1 does not exist", ex.getMessage());
+        assertEquals("User with id 999 does not exist", ex.getMessage());
     }
 
     @Test
     void update_whenEmailExists_shouldThrow() {
-        User user = new User();
-        user.setId(1L);
-        user.setEmail("old@example.com");
+        User user1 = new User();
+        user1.setEmail("exist@example.com");
+        user1.setName("User1");
+        user1.setBirthday(LocalDate.of(1990, 1, 1));
+        userRepository.save(user1);
 
-        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
-        when(userRepository.findByEmail("exist@example.com")).thenReturn(Optional.of(new User()));
+        User user2 = new User();
+        user2.setEmail("old@example.com");
+        user2.setName("User2");
+        user2.setBirthday(LocalDate.of(1995, 5, 5));
+        User saved = userRepository.save(user2);
 
         IllegalStateException ex = assertThrows(IllegalStateException.class,
-                () -> userService.update(1L, null, "exist@example.com"));
+                () -> userService.update(saved.getId(), null, "exist@example.com"));
 
         assertEquals("User with email old@example.com already exists", ex.getMessage());
     }
