@@ -7,8 +7,8 @@ import org.mapstruct.Mapping;
 
 @Mapper(componentModel = "spring")
 public interface UserMapping {
-    @Mapping(source = "birthday", target = "birthday")
+    //@Mapping(source = "birthday", target = "birthday")
     UserDto userDto(User user);
-    @Mapping(source = "birthday", target = "birthday")
+    //@Mapping(source = "birthday", target = "birthday")
     User user(UserDto userDto);
 }

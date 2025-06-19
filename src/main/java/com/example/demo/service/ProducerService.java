@@ -1,8 +1,6 @@
 package com.example.demo.service;
 
 import com.example.demo.entity.User;
-import lombok.AllArgsConstructor;
-import lombok.Data;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
