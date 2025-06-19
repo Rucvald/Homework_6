@@ -52,6 +52,7 @@ public class UserController {
                     examples = @ExampleObject(
                             name = "UserCreateExample",
                             summary = "Example user creation",
+                            description = "Age is calculated in the service layer",
                             value = "{ \"name\": \"Vasya Pupkin\", \"email\": \"pupkin@example.com\", \"birthday\": \"2000-06-19\" }"
                     )
             )
