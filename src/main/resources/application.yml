@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: circuit-breaker
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      producerServiceCircuitBreaker:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 30s
+        permittedNumberOfCallsInHalfOpenState: 3
+        minimumNumberOfCalls: 5
+        slowCallRateThreshold: 50
+        slowCallDurationThreshold: 2s
+        eventConsumerBufferSize: 10
+        recordExceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+        ignoreExceptions:
+          - org.springframework.web.client.HttpServerErrorException$InternalServerError
+
+  timelimiter:
+    instances:
+      producerServiceCircuitBreaker:
+        timeoutDuration: 4s

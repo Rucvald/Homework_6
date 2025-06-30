@@ -14,6 +14,8 @@ import java.util.Optional;
 
 import static java.util.Objects.nonNull;
 
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+
 @Service
 @Getter
 public class UserService {
@@ -21,6 +23,8 @@ public class UserService {
     private final UserRepository userRepository;
     private final UserMapping userMapping;
     private final ProducerService producerService;
+
+    private static final String PRODUCER_SERVICE_CB = "producerServiceCircuitBreaker";
 
     public UserService(UserRepository userRepository, UserMapping userMapping, ProducerService producerService) {
         this.userRepository = userRepository;
@@ -31,7 +35,6 @@ public class UserService {
     public UserDto findById(Long id) {
         User user = userRepository.findById(id).orElseThrow(() -> new IllegalStateException("User with id " + id + " not found"));
         return userMapping.userDto(user);
-
     }
 
     @Transactional
@@ -44,20 +47,18 @@ public class UserService {
         userEntity.setAge(Period.between(userEntity.getBirthday(), LocalDate.now()).getYears());
         User createdUser = userRepository.save(userEntity);
 
-        producerService.sendMessageForCreate(createdUser);
+        sendMessageForCreateWithCB(createdUser);
 
         return userMapping.userDto(createdUser);
     }
 
     public void delete(Long id) {
         User user = userRepository.findById(id).orElseThrow(() -> new IllegalStateException("User with id " + id + " not found"));
-        producerService.sendMessageForDelete(user);
+        sendMessageForDeleteWithCB(user);
         userRepository.deleteById(id);
     }
 
     @Transactional
-    // Если помечать метод аннотацией @Transactional, то все операции с данными внутри метода выполняются атомарно.
-    // Прервется одна - прервутся все. При этом можно убрать метод save()
     public void update(Long id, String name, String email) {
         Optional<User> userOptional = userRepository.findById(id);
         if (userOptional.isEmpty()) {
@@ -74,6 +75,24 @@ public class UserService {
             }
             user.setEmail(email);
         }
-        //userRepository.save(user);
+    }
+
+    @CircuitBreaker(name = PRODUCER_SERVICE_CB, fallbackMethod = "fallbackSendMessageForCreate")
+    public void sendMessageForCreateWithCB(User user) {
+        producerService.sendMessageForCreate(user);
+    }
+
+    @CircuitBreaker(name = PRODUCER_SERVICE_CB, fallbackMethod = "fallbackSendMessageForDelete")
+    public void sendMessageForDeleteWithCB(User user) {
+        producerService.sendMessageForDelete(user);
+    }
+
+    public void fallbackSendMessageForCreate(User user, Throwable t) {
+        System.err.println("Fallback: sendMessageForCreate failed for user " + user.getId() + ", reason: " + t.getMessage());
+    }
+
+    public void fallbackSendMessageForDelete(User user, Throwable t) {
+        System.err.println("Fallback: sendMessageForDelete failed for user " + user.getId() + ", reason: " + t.getMessage());
     }
 }
+

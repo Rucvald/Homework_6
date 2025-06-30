@@ -1,0 +1,11 @@
+resilience4j.circuitbreaker:
+  instances:
+    myServiceCircuitBreaker:
+      registerHealthIndicator: true
+      slidingWindowSize: 10
+      failureRateThreshold: 50
+      waitDurationInOpenState: 30s
+      permittedNumberOfCallsInHalfOpenState: 3
+      minimumNumberOfCalls: 5
+      slowCallRateThreshold: 50
+      slowCallDurationThreshold: 2s
