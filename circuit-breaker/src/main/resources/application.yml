@@ -1,11 +1,26 @@
-resilience4j.circuitbreaker:
-  instances:
-    myServiceCircuitBreaker:
-      registerHealthIndicator: true
-      slidingWindowSize: 10
-      failureRateThreshold: 50
-      waitDurationInOpenState: 30s
-      permittedNumberOfCallsInHalfOpenState: 3
-      minimumNumberOfCalls: 5
-      slowCallRateThreshold: 50
-      slowCallDurationThreshold: 2s
+server:
+  port: 8081
+
+spring:
+  application:
+    name: circuit-breaker-service
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      myServiceCircuitBreaker:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 30s
+        permittedNumberOfCallsInHalfOpenState: 3
+        minimumNumberOfCalls: 5
+        slowCallRateThreshold: 50
+        slowCallDurationThreshold: 2s

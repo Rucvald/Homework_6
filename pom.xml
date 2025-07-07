@@ -90,6 +90,11 @@
         </dependency>
 
         <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-config</artifactId>
+        </dependency>
+
+        <dependency>
             <groupId>by.rucvald</groupId>
             <artifactId>circuit-breaker</artifactId>
             <version>0.0.1-SNAPSHOT</version>
